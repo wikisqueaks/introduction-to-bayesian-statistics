@@ -2,27 +2,41 @@ library(shiny)
 library(ggplot2)
 
 ui <- fluidPage(
-  titlePanel("Binomial Distribution and Likelihood"),
+  tags$head(
+    tags$style(HTML("
+      .col-sm-6 {
+        padding-left: 5px;
+        padding-right: 5px;
+      }
+    "))
+  ),
+  titlePanel("Probability vs. Likelihood with the Binomial Model"),
   sidebarLayout(
     sidebarPanel(
       withMathJax(
-        HTML("This app illustrates how the likelihood function is formed by evaluating
-        the probability of observing the fixed data \\((y,n)\\) across many values
-        of the binomial parameter \\(\\pi\\). The plot on the right shows the likelihood
-        curve, with the blue point marking the likelihood at the chosen \\(\\pi\\).
-        Sampling many values of \\(\\pi\\) provides a close approximation to the full
-        likelihood curve.")
+        HTML("
+          <div style='text-align: justify;'>
+          This app illustrates how the binomial formula is used in two different ways.
+          In the <b>probability plot</b> (left), the parameters \\(\\pi\\) and \\(n\\) are held constant,
+          and the vertical axis shows how the probability \\(P(Y=y)\\) changes as \\(y\\) varies. The observed
+          number of successes is highlighted in red and does not change as the distribution is adjusted.
+          In the <b>likelihood plot</b> (right), the data \\((y,n)\\) are held constant,
+          and the vertical axis shows how the likelihood function \\(\\mathcal{L}(\\pi)\\) changes
+          as \\(\\pi\\) varies. The formulas beneath each plot reflect these two perspectives.
+          </div>
+        ")
       ),
       br(),
       tags$h4("Parameter"),
-      numericInput("p", "Probability of Success (π):",
-        value = 0.25, min = 0, max = 1, step = 0.01, width = "100px"
+      sliderInput("p", "Probability of Success (π):",
+        value = 0.25, min = 0, max = 1, step = 0.01, width = "400px"
       ),
-      br(),
       tags$h4("The Data"),
-      fluidRow(
-        column(6, numericInput("y", "Observed (y):", value = 5, min = 0, width = "100px")),
-        column(6, numericInput("n", "Trials (n):", value = 20, min = 1, width = "100px"))
+      sliderInput("y", "Observed Successes (y):",
+        min = 0, max = 100, value = 5, step = 1, width = "200px"
+      ),
+      sliderInput("n", "Number of Trials (n):",
+        min = 1, max = 200, value = 20, step = 1, width = "200px"
       )
     ),
     mainPanel(
@@ -35,7 +49,8 @@ ui <- fluidPage(
         column(
           6,
           plotOutput("likPlot"),
-          withMathJax(uiOutput("likFormula"))
+          withMathJax(uiOutput("likFormula")),
+          withMathJax(uiOutput("likEquation"))
         )
       )
     )
@@ -63,14 +78,20 @@ server <- function(input, output, session) {
       geom_col(color = NA) +
       scale_fill_manual(values = c("FALSE" = "lightgray", "TRUE" = "red"), guide = "none") +
       geom_hline(yintercept = dbinom(y, n, p), linetype = "dotted", color = "blue") +
+      geom_segment(x = y, xend = y, y = 0, yend = ymaxReactive(), color = "red", linetype = "dotted") +
       labs(
-        x = "Number of Successes",
+        x = "Number of Successes (y)",
         y = "Probability",
-        title = paste0("Binomial Distribution with n=", n, ", π=", sprintf("%.2f", p))
+        title = bquote("The Binomial Distribution: " ~
+          Y %~% Binom(pi == .(sprintf("%.2f", p)), n == .(n))),
+        subtitle = "Red line/bar shows the observed successes (\"the data\")."
       ) +
       coord_cartesian(ylim = c(0, ymaxReactive())) +
       theme_classic(base_size = 12) +
-      theme(plot.title = element_text(hjust = 0.5))
+      theme(
+        plot.title = element_text(hjust = 0),
+        plot.subtitle = element_text(color = "red")
+      )
   })
 
   output$likPlot <- renderPlot({
@@ -92,14 +113,17 @@ server <- function(input, output, session) {
         linetype = "dotted", color = "blue"
       ) +
       labs(
-        x = "π", y = "Likelihood",
-        title = paste0("Likelihood Curve: y=", x, ", n=", n)
+        x = "Binomial Distribution Parameter (π)", y = "Likelihood",
+        title = bquote("Likelihood Function: " ~ cal(L)(pi) ~
+          " with " ~ y == .(x) ~ " and " ~ n == .(n)),
+        subtitle = "The blue point shows likelihood of observed data given distribution on left."
       ) +
       coord_cartesian(ylim = c(0, ymaxReactive())) +
       theme_classic(base_size = 12) +
       theme(
-        plot.title = element_text(hjust = 0.5),
-        axis.text.x = element_text(size = 12)
+        plot.title = element_text(hjust = 0),
+        axis.text.x = element_text(size = 12),
+        plot.subtitle = element_text(color = "blue")
       )
   })
 
@@ -110,11 +134,13 @@ server <- function(input, output, session) {
       withMathJax(
         HTML(
           paste0(
-            "Probability mass function: ",
-            "\\( P(Y=y) = {n \\choose y} \\pi^{y} (1-\\pi)^{n-y} \\)",
+            "<u><b>Binomial probability mass function</b></u>",
             "<br><br>",
-            "With values: ",
-            "\\( P(Y=y) = {", n, " \\choose y} ",
+            "\\( p(y) = {n \\choose y} \\pi^{y} (1-\\pi)^{n-y} \\)",
+            "<br><br>",
+            "<b>Keeping \\( \\pi,n \\) constant and varying \\( y \\):</b>",
+            "<br><br>",
+            "\\( p(y) = {", n, " \\choose y} ",
             sprintf("%.2f", p), "^{y} (1-", sprintf("%.2f", p), ")^{", n, "-y} \\)"
           )
         )
@@ -122,23 +148,41 @@ server <- function(input, output, session) {
     })
   })
 
-
-
-
   output$likFormula <- renderUI({
     n <- input$n
     y <- input$y
     isolate({
       withMathJax(
-        helpText(
+        HTML(
           paste0(
-            "Likelihood function: ",
-            "\\( \\mathcal{L}(\\pi) = P(Y=", y, " \\mid n=", n, ", \\pi) \\)"
+            "<u><b>Likelihood function</b></u>",
+            "<br><br>",
+            "\\( \\mathcal{L}(\\pi) = P(Y=y \\mid n, \\pi) \\)",
+            "<br><br>"
+          )
+        )
+      )
+    })
+  })
+
+  output$likEquation <- renderUI({
+    n <- input$n
+    y <- input$y
+    isolate({
+      withMathJax(
+        HTML(
+          paste0(
+            "<b>Keeping \\( y,n \\) constant and varying \\( \\pi \\):</b>",
+            "<br><br>",
+            "\\( \\mathcal{L}(\\pi) = {", n, " \\choose ", y, "} ",
+            "\\pi^{", y, "} (1-\\pi)^{", n, "-", y, "} \\)"
           )
         )
       )
     })
   })
 }
+
+
 
 shinyApp(ui = ui, server = server)

@@ -5,7 +5,7 @@ account: kwtaylor
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 15444376
-bundleId: 10903098
+bundleId: 10904718
 url: https://kwtaylor.shinyapps.io/binomial-likelihood/
 version: 1
 asMultiple: FALSE
