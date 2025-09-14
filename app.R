@@ -114,8 +114,7 @@ server <- function(input, output, session) {
       ) +
       labs(
         x = "Binomial Distribution Parameter (π)", y = "Likelihood",
-        title = bquote("Likelihood Function: " ~ cal(L)(pi) ~
-          " with " ~ y == .(x) ~ " and " ~ n == .(n)),
+        title = bquote("Likelihood Function with " ~ y == .(x) ~ " and " ~ n == .(n)),
         subtitle = "The blue point shows likelihood of observed data given distribution on left."
       ) +
       coord_cartesian(ylim = c(0, ymaxReactive())) +
